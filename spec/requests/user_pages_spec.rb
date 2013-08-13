@@ -34,18 +34,13 @@ describe "User pages" do
         before { click_button submit }
 
         it { should have_title('Sign up') }
-        it { should have_content('error') }
+        it { should have_error_message('error') }
       end
     end
 
     describe "with valid information" do
       let(:user_email) { "user@example.com" }
-      before do
-        fill_in "Name",         with: "Example User"
-        fill_in "Email",        with: user_email
-        fill_in "Password",     with: "foobar"
-        fill_in "Confirmation", with: "foobar"
-      end
+      before { fill_in_valid_signup_info(user_email) }
 
       it "should create a user" do
         expect { click_button submit }.to change(User, :count).by(1)
@@ -56,7 +51,7 @@ describe "User pages" do
         let(:user) { User.find_by(email: user_email) }
 
         it { should have_title(user.name) }
-        it { should have_selector('div.alert.alert-success', text: 'Welcome') }
+        it { should have_success_message('Welcome') }
         it { should have_link('Sign out') }
       end
     end
