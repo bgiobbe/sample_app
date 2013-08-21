@@ -19,6 +19,10 @@ describe "Authentication" do
 
       it { should have_title("Sign in") }
       it { should have_error_message('Invalid') }
+      it { should_not have_link('Profile') }
+      it { should_not have_link('Users') }
+      it { should_not have_link('Settings') }
+      it { should_not have_link('Sign out') }
 
       describe "after visiting another page" do
         before { click_link "Home" }
@@ -52,9 +56,7 @@ describe "Authentication" do
         before do
           visit edit_user_path(user)
           # redirects to sign-in page
-          fill_in "Email",    with: user.email
-          fill_in "Password", with: user.password
-          click_button "Sign in"
+          sign_in(user)
         end
 
         describe "after signing in" do
@@ -62,6 +64,20 @@ describe "Authentication" do
           it "should render the desired protected page" do
             expect(page).to have_title('Edit user')
           end
+
+          describe "when signing in again" do
+            before do
+              delete signout_path
+              visit signin_path
+              fill_in "Email",    with: user.email
+              fill_in "Password", with: user.password
+              click_button "Sign in"
+            end
+
+            it "should render the default (profile) page" do
+              expect(page).to have_title(user.name)
+            end
+          end          
         end
       end
       
@@ -84,20 +100,40 @@ describe "Authentication" do
       end
     end
 
+    describe "for signed-in users" do
+      let(:user) { FactoryGirl.create(:user) }
+      before { sign_in user, no_capybara: true }
+      
+      describe "visiting the sign-up page" do
+        before { get signup_path }
+        specify { expect(response).to redirect_to(root_url) }
+      end
+      
+      describe "creating a new user" do
+        let(:params) { { user: { name: 'Signed-in User' } } }
+        before { post users_path, params }
+        specify { expect(response).to redirect_to(root_url) }
+      end
+    end
+
     describe "as wrong user" do
       let(:user) { FactoryGirl.create(:user) }
       let(:wrong_user) { FactoryGirl.create(:user, email: "wrong@example.com") }
       before { sign_in user, no_capybara: true }
 
       describe "visiting Users#edit page" do
-        before { visit edit_user_path(wrong_user) }
+        before { get edit_user_path(wrong_user) }
       
-        it { should_not have_title(full_title("Edit user")) }  # Can't get this test to fail!
-        it { should have_content("Sign up now!") }
+        specify { expect(response.body).not_to match(full_title("Edit user")) }
+        specify { expect(response).to redirect_to(root_url) }
       end
 
       describe "submitting a PATCH request to the Users#update action" do
-        before { patch user_path(wrong_user) }
+        let(:params) do
+          { user: { password: wrong_user.password,
+                    confirmation_password: wrong_user.password } }
+        end
+        before { patch user_path(wrong_user), params }
         specify { expect(response).to redirect_to(root_url) }
       end
     end
